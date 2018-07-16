@@ -25,3 +25,5 @@ lib/*
 
 temp
 src/emDecoder.js
+src/*.wasm
+package-lock.json
