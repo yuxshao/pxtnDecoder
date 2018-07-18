@@ -12,6 +12,11 @@ const TEMP_BUFFER_SIZE = 4096;
 const HEAPU8 = new Uint8Array(buffer);
 
 // main function
+// type: noise | pxtone | stream
+// inputBuffer: the input project/noise/tune file
+// ch: # channels
+// sps: samples per second?
+// bps: bits per sample I think
 async function decode(type, inputBuffer, ch, sps, bps) {
     // input buffer 
     const inputSize = inputBuffer.byteLength;
@@ -51,6 +56,8 @@ async function decode(type, inputBuffer, ch, sps, bps) {
 
         case "pxtone": 
         case "stream": {
+            // pxVomitMem points to the pxVomit instance. doc for pxwrDoc (some pointer to a ptcop file?)
+            // this is allocation
             const pxVomitMem = new Memory("*"), docMem = new Memory("*");
 
             // create
@@ -148,15 +155,17 @@ async function decode(type, inputBuffer, ch, sps, bps) {
             // vomit
             if(type === "pxtone") {
 
+                // outputSize is essentially sample_num
                 outputBuffer = new ArrayBuffer(outputSize);
+                const outputArray = new Uint8Array(outputBuffer);
+
                 const tempBufferMem = new Memory(TEMP_BUFFER_SIZE);
+                const tempArray = HEAPU8.subarray(tempBufferMem.ptr, tempBufferMem.ptr + TEMP_BUFFER_SIZE);
 
                 const release = () => {
                         tempBufferMem.release();
                 };
 
-                const tempArray = HEAPU8.subarray(tempBufferMem.ptr, tempBufferMem.ptr + TEMP_BUFFER_SIZE);
-                const outputArray = new Uint8Array(outputBuffer);
 
                 let deadline = await waitUntilIdle();
                 for(let pc = 0; pc < outputSize; pc += TEMP_BUFFER_SIZE) {
@@ -244,6 +253,7 @@ if(ENVIRONMENT === "NODE") {
 } else if(ENVIRONMENT === "WEB") {
 	global["pxtnDecoder"] = decode;
 } else if(ENVIRONMENT === "WORKER") {
+    // e is a MessageEvent. import info is in data
 	global["addEventListener"]("message", async function(e) {
 		const data = e["data"];
 		const type = data["type"];
@@ -257,6 +267,7 @@ if(ENVIRONMENT === "NODE") {
 		const sessionId = data["sessionId"];
 		const { buffer, stream, data: retData } = await decode(type, data["buffer"], data["ch"], data["sps"], data["bps"]);
 
+        // here the worker is responding to the main thread
         global["postMessage"]({
             "sessionId":	sessionId,
             "buffer":		buffer,
@@ -266,6 +277,7 @@ if(ENVIRONMENT === "NODE") {
         // stream
         if(stream) {
 
+            // handle cancel event
             const cancel = (e) => {
                 const data = e["data"];
                 if(data["type"] === "cancel" && data["sessionId"] === sessionId) {
@@ -275,6 +287,12 @@ if(ENVIRONMENT === "NODE") {
             };
             global["addEventListener"]("message", cancel);
 
+            // subscribe to the stream Observable
+            // when the next thing is filled, post a msg to the main thread forwarding the next thing
+            // send a finish msg when you're done and remove the cancel
+            // handler. this happens when cancel is called presumably, since the
+            // flag that enables complete to be called only can be set from
+            // outside.
             const subscription = stream.subscribe({
                 next(streamBuffer) {
                     global["postMessage"]({
