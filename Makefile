@@ -11,10 +11,10 @@ EMCC_OPTS+=-s EXPORT_NAME=pxtnDecoder
 EMCC_OPTS+=-s MODULARIZE_INSTANCE=1
 EMCC_OPTS+=--pre-js $(EMCC_DIR)/pre.js --post-js $(EMCC_DIR)/post.js
 
-EMCC_LINKS:=-I $(PXTONE_DIR)/src-oggvorbis -I $(PXTONE_DIR)/src-pxtone -I $(PXTONE_DIR)/src-pxtonePlay -I $(PXTONE_DIR)/src-pxwr
+EMCC_LINKS:=-I $(PXTONE_DIR)/src-oggvorbis -I $(PXTONE_DIR)
 
 EMCC_SRCS:=-x c $(wildcard $(PXTONE_DIR)/src-oggvorbis/*.c) $(PXTONE_DIR)/src-oggvorbis/.libs/libvorbis.a
-EMCC_SRCS+=-x c++ $(EMCC_DIR)/bind.cpp $(wildcard $(PXTONE_DIR)/src-pxtone/*.cpp) $(wildcard $(PXTONE_DIR)/src-pxtonePlay/*.cpp) $(wildcard $(PXTONE_DIR)/src-pxwr/*.cpp)
+EMCC_SRCS+=-x c++ $(EMCC_DIR)/bind.cpp $(wildcard $(PXTONE_DIR)/*.cpp)
 
 
 all: lib/* build/pxtnDecoder.min.js
@@ -32,7 +32,7 @@ lib/*: src/* src/emDecoder.js
 	babel src --ignore "emDecoder.js" -d lib && \
 	cp src/emDecoder.js lib/emDecoder.js
 
-src/emDecoder.js: $(PXTONE_DIR)/src-pxtone/* $(PXTONE_DIR)/src-pxtonePlay/* $(PXTONE_DIR)/src-pxwr/* $(EMCC_DIR)/*
+src/emDecoder.js: $(PXTONE_DIR)/* $(EMCC_DIR)/*
 	em++ $(CLANG_OPTS) $(EMCC_OPTS) $(EMCC_LINKS) $(EMCC_SRCS) -o src/emDecoder.js
 
 clean:

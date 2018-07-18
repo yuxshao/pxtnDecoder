@@ -3,10 +3,10 @@
 
 #include <emscripten/bind.h>
 
-#include <pxwrDoc.h>
+#include <pxtnDescriptor.h>
 
 #include <pxtoneNoise.h>
-#include <pxtoneVomit.h>
+#include <pxtnService.h>
 
 using namespace emscripten;
 
@@ -18,20 +18,20 @@ bool decodeNoise(uintptr_t noise_c, int noise_length, int ch, int sps, int bps, 
 	int *		wave_length	= (int *) wave_length_c;
 
 	bool			b_ret	= false;
-	pxwrDoc *		doc		= new pxwrDoc();
+	pxtnDescriptor* doc		= new pxtnDescriptor();
 	pxtoneNoise *	pxNoise	= new pxtoneNoise();
 
 	void **		buffer;
 
 	// set buffer to doc
-	if(!doc->SetRead(noise, noise_length))			goto End;
+	if(!doc->set_memory_r(noise, noise_length))			goto End;
 
 	// create noise
-	if(!pxNoise->Init())							goto End;
-	if(!pxNoise->SetQuality(ch, sps, bps))			goto End;
+	if(!pxNoise->init())								goto End;
+	if(!pxNoise->quality_set(ch, sps, bps))				goto End;
 
 	// set doc to noise
-	if(!pxNoise->Sample(doc, buffer, wave_length))	goto End;
+	if(!pxNoise->generate(doc, buffer, wave_length))	goto End;
 
 	// memcpy
 	*wave = malloc(*wave_length);
@@ -40,11 +40,20 @@ bool decodeNoise(uintptr_t noise_c, int noise_length, int ch, int sps, int bps, 
 	b_ret = true;
 
 End:
-	if(pxNoise)			delete pxNoise;
-	if(doc)				delete doc;
+	if(pxNoise)		delete pxNoise;
+	if(doc)			delete doc;
 	if(*wave && !b_ret)	free(*wave);
 
 	return b_ret;
+}
+
+// new pxtone version only supports a fixed bps
+pxtnERR check_bps(int bps) {
+	if(bps != pxtnBITPERSAMPLE) {
+		printf("ERROR: bps must be %d\n", pxtnBITPERSAMPLE);
+		return pxtnERR_INIT;
+	}
+	return pxtnOK;
 }
 
 // Pxtone Project
@@ -57,18 +66,21 @@ bool createPxtone(uintptr_t pxtn_c, int pxtn_length, int ch, int sps, int bps, u
 
 	bool		b_ret		= false;	
 
-	pxwrDoc *		doc		= new pxwrDoc();
-	pxtoneVomit *	pxVomit	= new pxtoneVomit();
+	pxtnDescriptor *	doc	= new pxtnDescriptor();
+	pxtnService *	pxVomit	= new pxtnService();
 	
 	// set buffer to doc
-	if(!doc->SetRead(pxtn, pxtn_length))	goto End;
+	pxtnERR        pxtn_err = pxtnERR_VOID;
+	if(!doc->set_memory_r(pxtn, pxtn_length))		goto End;
 
 	// create vomit
-	if(!pxVomit->Init())					goto End;
-	if(!pxVomit->set_quality(ch, sps, bps))	goto End;
+	pxtn_err = pxVomit->init(); if( pxtn_err != pxtnOK )	goto End;
+	if(!pxVomit->set_destination_quality(ch, sps))			goto End;
+	pxtn_err = check_bps(bps); if( pxtn_err != pxtnOK )		goto End;
 
 	// set doc to vomit
-	if(!pxVomit->Read(doc))					goto End;
+	pxtn_err = pxVomit->read(doc);		if( pxtn_err != pxtnOK ) goto End;
+	pxtn_err = pxVomit->tones_ready();	if( pxtn_err != pxtnOK ) goto End;
 
 	*pxVomit_m = (void *) pxVomit;
 	*doc_m = (void *) doc;
@@ -79,6 +91,8 @@ End:
 	if(!b_ret) {
 		delete pxVomit;
 		delete doc;
+
+		printf("ERROR: pxtnERR[ %s ]\n", pxtnError_get_string( pxtn_err ) );
 	}
 
 	return b_ret;
@@ -93,16 +107,11 @@ bool getPxtoneText(uintptr_t pxVomit_c, uintptr_t title_c, uintptr_t title_lengt
 	void **		comment			= (void **) comment_c;
 	int *		comment_length	= (int *) comment_length_c;
 
-	pxtoneVomit *	pxVomit	= (pxtoneVomit *) *pxVomit_m;
+	pxtnService *		pxVomit	= (pxtnService *) *pxVomit_m;
 
 	// title, comment
-	if(*title = (void *) pxVomit->get_title()) {
-		*title_length = strlen((char *) *title);
-	}
-
-	if(*comment = (void *) pxVomit->get_comment()) {
-		*comment_length = strlen((char *) *comment);
-	}
+	*title = (void *) pxVomit->text->get_name_buf(title_length);
+	*comment = (void *) pxVomit->text->get_name_buf(comment_length);
 
 	return true;
 }
@@ -117,27 +126,34 @@ bool getPxtoneInfo(uintptr_t pxVomit_c, int ch, int sps, int bps, uintptr_t wave
 
 	bool		b_ret		= false;
 
-	pxtoneVomit * pxVomit	= (pxtoneVomit *) *pxVomit_m;
+	pxtnService * pxVomit	= (pxtnService *) *pxVomit_m;
 
-	int			beatNum;
+	int			beatNum	;
 	float		beatTempo;
 	int			measNum;
 	int			sampleNum;
 	double		duration;
 
-	if(!pxVomit->get_info(&beatNum, &beatTempo, NULL, &measNum))	goto End;
-	sampleNum = pxtoneVomit_Calc_sample_num(measNum, beatNum, sps, beatTempo) * ch * bps / 8;
+	pxVomit->master->Get(&beatNum, &beatTempo, NULL, &measNum);
+	if( check_bps(bps) != pxtnOK ) goto End;
+	sampleNum = pxtnService_moo_CalcSampleNum(measNum, beatNum, sps, beatTempo) * ch * bps / 8;
 
 	// length
 	*wave_length = sampleNum;
 
 	// loop
 	duration = (double)sampleNum / (double)ch / ((double)bps / 8) / (double)sps;
-	*loopStart = (double)pxVomit->get_meas_repeat() / (double)measNum * duration;
-	*loopEnd = (double)pxVomit->get_meas_play() / (double)measNum * duration;
+	*loopStart	= (double)pxVomit->master->get_repeat_meas() / (double)measNum * duration;
+	*loopEnd	= (double)pxVomit->master->get_play_meas() / (double)measNum * duration;
 
 	// vomit start
-	if(!pxVomit->Start(0, 0))										goto End;
+	{
+		pxtnVOMITPREPARATION prep = {0};
+		prep.flags          |= pxtnVOMITPREPFLAG_loop;
+		prep.start_pos_float =   0;
+		prep.master_volume   = 1.f;
+		if(!pxVomit->moo_preparation(&prep)) goto End;
+	}
 
 	b_ret = true;
 
@@ -150,11 +166,11 @@ bool vomitPxtone(uintptr_t pxVomit_c, uintptr_t buffer_c, int size) {
 	void **		pxVomit_m	= (void **)	pxVomit_c;
 	void *		buffer		= (void *)	buffer_c;
 
-	pxtoneVomit *	pxVomit	= (pxtoneVomit *) *pxVomit_m;
+	pxtnService *	pxVomit	= (pxtnService *) *pxVomit_m;
 
-	bool		b_ret		= false;
+	bool		b_ret			= false;
 
-	if(!pxVomit->vomit(buffer, size))	goto End;
+	if(!pxVomit->Moo(buffer, size))	goto End;
 	
 	b_ret = true;
 End:
@@ -166,8 +182,8 @@ void releasePxtone(uintptr_t pxVomit_c, uintptr_t doc_c) {
 	void **		pxVomit_m	= (void **)	pxVomit_c;
 	void **		doc_m		= (void **)	doc_c;
 
-	pxtoneVomit *	pxVomit	= (pxtoneVomit *) *pxVomit_m;
-	pxwrDoc *		doc		= (pxwrDoc *) *doc_m;
+	pxtnService *	pxVomit	= (pxtnService *) *pxVomit_m;
+	pxtnDescriptor *doc		= (pxtnDescriptor *) *doc_m;
 
 	if(pxVomit)	delete pxVomit;
 	if(doc)		delete doc;
@@ -176,7 +192,6 @@ void releasePxtone(uintptr_t pxVomit_c, uintptr_t doc_c) {
 
 EMSCRIPTEN_BINDINGS(px_module) {
 	function("decodeNoise", &decodeNoise);
-
 	function("createPxtone", &createPxtone);
 	function("releasePxtone", &releasePxtone);
 	function("getPxtoneText", &getPxtoneText);
