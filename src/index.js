@@ -189,49 +189,31 @@ async function decode(type, inputBuffer, ch, sps, bps) {
 
             } else if(type === "stream") {
 
-                outputStream = new Observable(observer => {
-
-                    let cancelFlag = false;
-                    (async () => {
-                        const tempBufferMem = new Memory(TEMP_BUFFER_SIZE);
+                let deadline;
+                outputStream = {
+                    next: async function (size) {
+                        const tempBufferMem = new Memory(size);
 
                         const release = () => {
                             tempBufferMem.release();
                         };
 
-                        let deadline;
-                        for(let pc = 0; pc < outputSize; pc += TEMP_BUFFER_SIZE) {
-                            const size = Math.min(TEMP_BUFFER_SIZE, outputSize - pc);
+                        if (!deadline || deadline && deadline.timeRemaining() === 0)
+                            deadline = await waitUntilIdle();
 
-                            // request idle
-                            if(!deadline || deadline && deadline.timeRemaining() === 0) deadline = await waitUntilIdle();
-
-                            // cancel
-                            if(cancelFlag) break;
-                         
-                            if(!vomitPxtone(pxVomitMem.ptr, tempBufferMem.ptr, size)) {
-                                release();
-                                releaseVomit();						
-                                throw new Error("Pxtone Vomit Error.");
-                            }
-
-                            // yield
-                            observer.next( buffer.slice(tempBufferMem.ptr, tempBufferMem.ptr + size) );
+                        if(!vomitPxtone(pxVomitMem.ptr, tempBufferMem.ptr, size)) {
+                            release();
+                            releaseVomit();
+                            throw new Error("Pxtone Vomit Error.");
                         }
 
-                        if(!cancelFlag)
-                            observer.complete();
-
-                        // release
                         release();
+                        return buffer.slice(tempBufferMem.ptr, tempBufferMem.ptr + size);
+                    },
+                    release: function () {
                         releaseVomit();
-                    })();
-
-                    return () => {
-                        cancelFlag = true;
-                    };
-                });
-
+                    }
+                };
             }
             break;
         }
@@ -258,10 +240,11 @@ if(ENVIRONMENT === "NODE") {
 		const data = e["data"];
 		const type = data["type"];
 
-        if(type !== "noise" && type !== "pxtone" && type !== "stream" && type !== "cancel")
+        if(type !== "noise" && type !== "pxtone" && type !== "stream"
+            && type !== "stream_next" && type !== "stream_release")
             throw new TypeError(`type is invalid (${ type })`);
         
-        if(type === "cancel")
+        if(type === "stream_next" || type == "stream_release")
             return;
 
 		const sessionId = data["sessionId"];
@@ -276,41 +259,23 @@ if(ENVIRONMENT === "NODE") {
 
         // stream
         if(stream) {
-
-            // handle cancel event
-            const cancel = (e) => {
+            global["addEventListener"]("message", (e) => {
                 const data = e["data"];
-                if(data["type"] === "cancel" && data["sessionId"] === sessionId) {
-                    subscription["unsubscribe"]();
-                    global["removeEventListener"]("message", cancel);
-                }
-            };
-            global["addEventListener"]("message", cancel);
-
-            // subscribe to the stream Observable
-            // when the next thing is filled, post a msg to the main thread forwarding the next thing
-            // send a finish msg when you're done and remove the cancel
-            // handler. this happens when cancel is called presumably, since the
-            // flag that enables complete to be called only can be set from
-            // outside.
-            const subscription = stream.subscribe({
-                next(streamBuffer) {
-                    global["postMessage"]({
-                        "sessionId":    sessionId,
-                        "streamBuffer": streamBuffer,
-                        "done":         false
-                    });
-                },
-                complete() {
-                    global["postMessage"]({
-                        "sessionId":    sessionId,
-                        "streamBuffer": null,
-                        "done":         true
-                    });
-                    global["removeEventListener"]("message", cancel);                    
+                if (data["sessionId"] !== sessionId)
+                    return;
+                switch (data["type"]) {
+                    case "stream_next":
+                        stream.next(data["size"]).then((next) =>
+                            global["postMessage"]({
+                                "sessionId":    sessionId,
+                                "streamBuffer": next
+                            }));
+                        break;
+                    case "stream_release":
+                        stream.release();
+                        break;
                 }
             });
-
         }
         
 	});
