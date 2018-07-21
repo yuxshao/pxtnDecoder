@@ -161,6 +161,37 @@ End:
 	return b_ret;
 }
 
+bool getPxtoneEvels(uintptr_t pxServ_c, uintptr_t unitNum_c, uintptr_t evelNum_c,
+		uintptr_t kinds_c, uintptr_t units_c, uintptr_t values_c, uintptr_t clocks_c) {
+	void **		pxServ_m = (void **) pxServ_c;
+	pxtnService *pxtn	 = (pxtnService *) *pxServ_m;
+
+	int *		unitNum	= (int *) unitNum_c;
+	int *		evelNum	= (int *) evelNum_c;
+
+	uint8_t **	kinds	= (uint8_t **) kinds_c;
+	uint8_t **	units	= (uint8_t **) units_c;
+	int32_t **	values	= (int32_t **) values_c;
+	int32_t **	clocks	= (int32_t **) clocks_c;
+
+	*unitNum = pxtn->Unit_Num();
+	*evelNum = pxtn->evels->get_Count();
+	*kinds	= (uint8_t *)malloc(*evelNum * sizeof(uint8_t));
+	*units	= (uint8_t *)malloc(*evelNum * sizeof(uint8_t));
+	*values	= (int32_t *)malloc(*evelNum * sizeof(int32_t));
+	*clocks	= (int32_t *)malloc(*evelNum * sizeof(int32_t));
+
+	int i = 0;
+	for (const EVERECORD *p = pxtn->evels->get_Records(); p; p = p->next, ++i) {
+		(*kinds)[i]	 = p->kind;
+		(*units)[i]	 = p->unit_no;
+		(*values)[i] = p->value;
+		(*clocks)[i] = p->clock;
+	}
+
+	return true;
+}
+
 bool vomitPxtone(uintptr_t pxVomit_c, uintptr_t buffer_c, int size) {
 
 	void **		pxVomit_m	= (void **)	pxVomit_c;
@@ -196,5 +227,6 @@ EMSCRIPTEN_BINDINGS(px_module) {
 	function("releasePxtone", &releasePxtone);
 	function("getPxtoneText", &getPxtoneText);
 	function("getPxtoneInfo", &getPxtoneInfo);
+	function("getPxtoneEvels", &getPxtoneEvels);
 	function("vomitPxtone", &vomitPxtone);
 }

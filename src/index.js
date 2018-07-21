@@ -5,11 +5,17 @@ import textDecoder from "./textDecoder";
 import waitUntilIdle from "./waitUntilIdle";
 
 // emscripten import
-import { ENVIRONMENT, buffer, _free, decodeNoise, createPxtone, releasePxtone, getPxtoneText, getPxtoneInfo, vomitPxtone } from "./emDecoder";
+import { ENVIRONMENT, getNativeTypeSize, buffer, _free, decodeNoise, createPxtone, releasePxtone, getPxtoneText, getPxtoneInfo, getPxtoneEvels, vomitPxtone } from "./emDecoder";
 
 // constant
 const TEMP_BUFFER_SIZE = 4096;
 const HEAPU8 = new Uint8Array(buffer);
+
+const eventKinds = [ // from pxtone_source/pxtnEvelist.h
+  "NULL", "ON", "KEY", "PAN_VOLUME", "VELOCITY", "VOLUME", "PORTAMENT",
+  "BEATCLOCK", "BEATTEMPO", "BEATNUM", "REPEAT", "LAST", "VOICENO",
+  "GROUPNO", "TUNING", "PAN_TIME", "NUM"
+];
 
 // main function
 // type: noise | pxtone | stream
@@ -25,7 +31,7 @@ async function decode(type, inputBuffer, ch, sps, bps) {
     HEAPU8.set(new Uint8Array(inputBuffer), inputBufferMem.ptr);
 
     // output
-    let outputBuffer = null, outputStream = null, data = null;
+    let outputBuffer = null, outputStream = null, data = null, evels = null;
 
     switch(type) {
         case "noise": {
@@ -152,6 +158,69 @@ async function decode(type, inputBuffer, ch, sps, bps) {
                 release();
             }
 
+            // evels
+            {
+                const unitNumMem = new Memory("i32"), evelNumMem = new Memory("i32");
+                const kindsMem = new Memory("*"), unitsMem = new Memory("*");
+                const valuesMem = new Memory("*"), clocksMem = new Memory("*");
+
+                const release = () => {
+                    unitNumMem.release();
+                    evelNumMem.release();
+                    kindsMem.release();
+                    unitsMem.release();
+                    valuesMem.release();
+                    clocksMem.release();
+                };
+
+                if(!getPxtoneEvels(pxVomitMem.ptr, unitNumMem.ptr, evelNumMem.ptr,
+                    kindsMem.ptr, unitsMem.ptr, valuesMem.ptr, clocksMem.ptr)) {
+                    release();
+                    releaseVomit();
+                    throw new Error("Get Pxtone Vomit Evels Error.");
+                }
+
+                const unitNum = unitNumMem.getValue();
+                const evelNum = evelNumMem.getValue();
+
+                const kindsStart = kindsMem.getValue();
+                const kindsEnd = kindsStart + (evelNum * getNativeTypeSize("i8"));
+                const kindsBufer = buffer.slice(kindsStart, kindsEnd);
+                const kindsBuffer = new Uint8Array(buffer.slice(kindsStart, kindsEnd));
+
+                const unitsStart = unitsMem.getValue();
+                const unitsEnd = unitsStart + (evelNum * getNativeTypeSize("i8"));
+                const unitsBufer = buffer.slice(unitsStart, unitsEnd);
+                const unitsBuffer = new Uint8Array(buffer.slice(unitsStart, unitsEnd));
+
+                const valuesStart = valuesMem.getValue();
+                const valuesEnd = valuesStart + (evelNum * getNativeTypeSize("i32"));
+                const valuesBufer = buffer.slice(valuesStart, valuesEnd);
+                const valuesBuffer = new Int32Array(buffer.slice(valuesStart, valuesEnd));
+
+                const clocksStart = clocksMem.getValue();
+                const clocksEnd = clocksStart + (evelNum * getNativeTypeSize("i32"));
+                const clocksBufer = buffer.slice(clocksStart, clocksEnd);
+                const clocksBuffer = new Int32Array(buffer.slice(clocksStart, clocksEnd));
+
+                evels = { unitNum, evels: new Array(evelNum) };
+
+                for (let i = 0; i < evelNum; ++i) {
+                    evels.evels[i] = {
+                        kind:    eventKinds[kindsBuffer[i]],
+                        unit_no: unitsBuffer[i],
+                        value:   valuesBuffer[i],
+                        clock:   clocksBuffer[i]
+                    }
+                }
+
+                _free(kindsStart);
+                _free(unitsStart);
+                _free(valuesStart);
+                _free(clocksStart);
+                release();
+            }
+
             // vomit
             if(type === "pxtone") {
 
@@ -225,7 +294,8 @@ async function decode(type, inputBuffer, ch, sps, bps) {
     return {
         "buffer":   outputBuffer,
         "stream":   outputStream,
-        "data":     data
+        "data":     data,
+        "evels":    evels
     };
 }
 
