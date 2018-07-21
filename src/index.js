@@ -5,7 +5,7 @@ import textDecoder from "./textDecoder";
 import waitUntilIdle from "./waitUntilIdle";
 
 // emscripten import
-import { ENVIRONMENT, getNativeTypeSize, buffer, _free, decodeNoise, createPxtone, releasePxtone, getPxtoneText, getPxtoneInfo, getPxtoneEvels, vomitPxtone } from "./emDecoder";
+import { ENVIRONMENT, getNativeTypeSize, buffer, _free, decodeNoise, createPxtone, releasePxtone, getPxtoneText, getPxtoneInfo, getPxtoneMaster, getPxtoneEvels, vomitPxtone } from "./emDecoder";
 
 // constant
 const TEMP_BUFFER_SIZE = 4096;
@@ -31,7 +31,7 @@ async function decode(type, inputBuffer, ch, sps, bps) {
     HEAPU8.set(new Uint8Array(inputBuffer), inputBufferMem.ptr);
 
     // output
-    let outputBuffer = null, outputStream = null, data = null, evels = null;
+    let outputBuffer = null, outputStream = null, data = null, master = null, evels = null;
 
     switch(type) {
         case "noise": {
@@ -153,6 +153,37 @@ async function decode(type, inputBuffer, ch, sps, bps) {
                     "title":        title,
                     "comment":      comment,
                     "byteLength":   outputSize
+                }
+
+                release();
+            }
+
+            // master
+            {
+                const beatNumMem = new Memory("i32");
+                const beatTempoMem = new Memory("float");
+                const beatClockMem = new Memory("i32");
+                const measNumMem = new Memory("i32");
+
+                const release = () => {
+                    beatNumMem.release();
+                    beatTempoMem.release();
+                    beatClockMem.release();
+                    measNumMem.release();
+                }
+
+                if(!getPxtoneMaster(pxVomitMem.ptr,
+                        beatNumMem.ptr, beatTempoMem.ptr, beatClockMem.ptr, measNumMem.ptr)) {
+                    release();
+                    releaseVomit();
+                    throw new Error("Get Pxtone Vomit Master Error.");
+                }
+
+                master = {
+                    beatNum: beatNumMem.getValue(),
+                    beatTempo: beatTempoMem.getValue(),
+                    beatClock: beatClockMem.getValue(),
+                    measNum: measNumMem.getValue()
                 }
 
                 release();
@@ -295,6 +326,7 @@ async function decode(type, inputBuffer, ch, sps, bps) {
         "buffer":   outputBuffer,
         "stream":   outputStream,
         "data":     data,
+        "master":   master,
         "evels":    evels
     };
 }

@@ -161,6 +161,15 @@ End:
 	return b_ret;
 }
 
+bool getPxtoneMaster(uintptr_t pxServ_c,
+	uintptr_t beatNum, uintptr_t beatTempo, uintptr_t beatClock, uintptr_t measNum) {
+	void **		pxServ_m = (void **) pxServ_c;
+	pxtnService *pxtn	 = (pxtnService *) *pxServ_m;
+
+	pxtn->master->Get((int *)beatNum, (float *)beatTempo, (int *)beatClock, (int *)measNum);
+	return true;
+}
+
 bool getPxtoneEvels(uintptr_t pxServ_c, uintptr_t unitNum_c, uintptr_t evelNum_c,
 		uintptr_t kinds_c, uintptr_t units_c, uintptr_t values_c, uintptr_t clocks_c) {
 	void **		pxServ_m = (void **) pxServ_c;
@@ -227,6 +236,7 @@ EMSCRIPTEN_BINDINGS(px_module) {
 	function("releasePxtone", &releasePxtone);
 	function("getPxtoneText", &getPxtoneText);
 	function("getPxtoneInfo", &getPxtoneInfo);
+	function("getPxtoneMaster", &getPxtoneMaster);
 	function("getPxtoneEvels", &getPxtoneEvels);
 	function("vomitPxtone", &vomitPxtone);
 }
