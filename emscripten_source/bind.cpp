@@ -161,12 +161,19 @@ End:
 	return b_ret;
 }
 
+// getPxtoneMaster and getPxtoneInfo get a lot of the same data, but getPxtonInfo gets
+// durations for audio playback, and getPxtoneMaster gets counts for drawing calculations.
 bool getPxtoneMaster(uintptr_t pxServ_c,
-	uintptr_t beatNum, uintptr_t beatTempo, uintptr_t beatClock, uintptr_t measNum) {
+	uintptr_t beatNum, uintptr_t beatTempo, uintptr_t beatClock, uintptr_t measNum,
+    uintptr_t repeatMeas, uintptr_t lastMeas) {
 	void **		pxServ_m = (void **) pxServ_c;
 	pxtnService *pxtn	 = (pxtnService *) *pxServ_m;
 
 	pxtn->master->Get((int *)beatNum, (float *)beatTempo, (int *)beatClock, (int *)measNum);
+
+    *((int *)repeatMeas) = pxtn->master->get_repeat_meas();
+    *((int *)lastMeas) = pxtn->master->get_last_meas();
+
 	return true;
 }
 

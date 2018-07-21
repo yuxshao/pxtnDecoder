@@ -160,30 +160,37 @@ async function decode(type, inputBuffer, ch, sps, bps) {
 
             // master
             {
-                const beatNumMem = new Memory("i32");
-                const beatTempoMem = new Memory("float");
-                const beatClockMem = new Memory("i32");
-                const measNumMem = new Memory("i32");
+                const beatNumMem    = new Memory("i32");
+                const beatTempoMem  = new Memory("float");
+                const beatClockMem  = new Memory("i32");
+                const measNumMem    = new Memory("i32");
+                const repeatMeasMem = new Memory("i32");
+                const lastMeasMem   = new Memory("i32");
 
                 const release = () => {
                     beatNumMem.release();
                     beatTempoMem.release();
                     beatClockMem.release();
                     measNumMem.release();
+                    repeatMeasMem.release();
+                    lastMeasMem.release();
                 }
 
                 if(!getPxtoneMaster(pxVomitMem.ptr,
-                        beatNumMem.ptr, beatTempoMem.ptr, beatClockMem.ptr, measNumMem.ptr)) {
+                        beatNumMem.ptr, beatTempoMem.ptr, beatClockMem.ptr, measNumMem.ptr,
+                        repeatMeasMem.ptr, lastMeasMem.ptr)) {
                     release();
                     releaseVomit();
                     throw new Error("Get Pxtone Vomit Master Error.");
                 }
 
                 master = {
-                    beatNum: beatNumMem.getValue(),
-                    beatTempo: beatTempoMem.getValue(),
-                    beatClock: beatClockMem.getValue(),
-                    measNum: measNumMem.getValue()
+                    beatNum:    beatNumMem.getValue(),
+                    beatTempo:  beatTempoMem.getValue(),
+                    beatClock:  beatClockMem.getValue(),
+                    measNum:    measNumMem.getValue(),
+                    repeatMeas: repeatMeasMem.getValue(),
+                    lastMeas:   lastMeasMem.getValue(),
                 }
 
                 release();
