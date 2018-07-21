@@ -338,26 +338,25 @@ if(ENVIRONMENT === "NODE") {
 	global["pxtnDecoder"] = decode;
 } else if(ENVIRONMENT === "WORKER") {
     // e is a MessageEvent. import info is in data
-	global["addEventListener"]("message", async function(e) {
-		const data = e["data"];
-		const type = data["type"];
+    global["addEventListener"]("message", async function(e) {
+        const data = e["data"];
+        const type = data["type"];
 
         if(type !== "noise" && type !== "pxtone" && type !== "stream"
             && type !== "stream_next" && type !== "stream_release")
             throw new TypeError(`type is invalid (${ type })`);
-        
+
         if(type === "stream_next" || type == "stream_release")
             return;
 
-		const sessionId = data["sessionId"];
-		const { buffer, stream, data: retData } = await decode(type, data["buffer"], data["ch"], data["sps"], data["bps"]);
+        const sessionId = data["sessionId"];
+        let msg = await decode(type, data["buffer"], data["ch"], data["sps"], data["bps"]);
+        const { buffer, stream } = msg;
 
+        msg.sessionId = sessionId;
+        delete msg.stream;
         // here the worker is responding to the main thread
-        global["postMessage"]({
-            "sessionId":	sessionId,
-            "buffer":		buffer,
-            "data":			retData
-        }, stream ? [] : [buffer]);
+        global["postMessage"](msg, stream ? [] : [buffer]);
 
         // stream
         if(stream) {
