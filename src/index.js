@@ -5,7 +5,9 @@ import textDecoder from "./textDecoder";
 import waitUntilIdle from "./waitUntilIdle";
 
 // emscripten import
-import { ENVIRONMENT, getNativeTypeSize, HEAPU8, _free, decodeNoise, createPxtone, releasePxtone, getPxtoneText, getPxtoneInfo, getPxtoneMaster, getPxtoneEvels, vomitPxtone } from "./emDecoder";
+import { ENVIRONMENT, getNativeTypeSize, getValue, HEAPU8, _free,
+    decodeNoise, createPxtone, releasePxtone, getPxtoneText, getPxtoneInfo,
+    getPxtoneMaster, getPxtoneUnits, getPxtoneEvels, vomitPxtone } from "./emDecoder";
 
 // constant
 const TEMP_BUFFER_SIZE = 4096;
@@ -41,7 +43,8 @@ async function decode(type, inputBuffer, ch, sps, bps) {
     }
 
     // output
-    let outputBuffer = null, outputStream = null, data = null, master = null, evels = null;
+    let outputBuffer = null, outputStream = null, data = null,
+        master = null, units = null, evels = null;
 
     switch(type) {
         case "noise": {
@@ -204,14 +207,55 @@ async function decode(type, inputBuffer, ch, sps, bps) {
                 release();
             }
 
+            // units
+            {
+                const unitNumMem = new Memory("i32");
+                const namesMem = new Memory("*"), sizesMem = new Memory("*");
+                const release = () => {
+                    unitNumMem.release();
+                    namesMem.release();
+                    sizesMem.release();
+                }
+
+                if (!getPxtoneUnits(pxVomitMem.ptr, unitNumMem.ptr, namesMem.ptr, sizesMem.ptr)) {
+                    release();
+                    releaseVomit();
+                    throw new Error("Get Pxtone Vomit Units Error.");
+                }
+
+                const unitNum = unitNumMem.getValue();
+                const sizesStart = sizesMem.getValue();
+                const sizesBuffer = get_heap(sizesStart, unitNum * getNativeTypeSize("i32"), Int32Array);
+                const namesStart = namesMem.getValue();
+                const pointerArray = (function () {
+                    switch (getNativeTypeSize("*")) {
+                        case 1: return Int8Array;
+                        case 2: return Int16Array;
+                        case 4: return Int32Array;
+                        default: throw "pointer buffer cannot be converted to typed array";
+                    }
+                })();
+                const namesBuffer = get_heap(namesStart, unitNum * getNativeTypeSize("*"), pointerArray);
+
+                units = new Array(unitNum);
+                for (let i = 0; i < unitNum; ++i) {
+                    const size = sizesBuffer[i];
+                    const nameBuffer = get_heap(namesBuffer[i], size);
+                    units[i] = await textDecoder(nameBuffer);
+                }
+
+                _free(sizesStart);
+                _free(namesStart);
+                release();
+            }
+
             // evels
             {
-                const unitNumMem = new Memory("i32"), evelNumMem = new Memory("i32");
+                const evelNumMem = new Memory("i32");
                 const kindsMem = new Memory("*"), unitsMem = new Memory("*");
                 const valuesMem = new Memory("*"), clocksMem = new Memory("*");
 
                 const release = () => {
-                    unitNumMem.release();
                     evelNumMem.release();
                     kindsMem.release();
                     unitsMem.release();
@@ -219,14 +263,13 @@ async function decode(type, inputBuffer, ch, sps, bps) {
                     clocksMem.release();
                 };
 
-                if(!getPxtoneEvels(pxVomitMem.ptr, unitNumMem.ptr, evelNumMem.ptr,
+                if(!getPxtoneEvels(pxVomitMem.ptr, evelNumMem.ptr,
                     kindsMem.ptr, unitsMem.ptr, valuesMem.ptr, clocksMem.ptr)) {
                     release();
                     releaseVomit();
                     throw new Error("Get Pxtone Vomit Evels Error.");
                 }
 
-                const unitNum = unitNumMem.getValue();
                 const evelNum = evelNumMem.getValue();
 
                 const kindsStart = kindsMem.getValue();
@@ -241,10 +284,9 @@ async function decode(type, inputBuffer, ch, sps, bps) {
                 const clocksStart = clocksMem.getValue();
                 const clocksBuffer = get_heap(clocksStart, evelNum * getNativeTypeSize("i32"), Int32Array);
 
-                evels = { unitNum, evels: new Array(evelNum) };
-
+                evels = new Array(evelNum);
                 for (let i = 0; i < evelNum; ++i) {
-                    evels.evels[i] = {
+                    evels[i] = {
                         kind:    eventKinds[kindsBuffer[i]],
                         unit_no: unitsBuffer[i],
                         value:   valuesBuffer[i],
@@ -334,6 +376,7 @@ async function decode(type, inputBuffer, ch, sps, bps) {
         "stream":   outputStream,
         "data":     data,
         "master":   master,
+        "units":    units,
         "evels":    evels
     };
 }

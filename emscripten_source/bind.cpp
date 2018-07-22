@@ -177,12 +177,35 @@ bool getPxtoneMaster(uintptr_t pxServ_c,
 	return true;
 }
 
-bool getPxtoneEvels(uintptr_t pxServ_c, uintptr_t unitNum_c, uintptr_t evelNum_c,
+bool getPxtoneUnits(uintptr_t pxServ_c, uintptr_t unitNum_c,
+		uintptr_t names_c, uintptr_t sizes_c) {
+	void **		pxServ_m = (void **) pxServ_c;
+	pxtnService *pxtn	 = (pxtnService *) *pxServ_m;
+
+	int32_t *		unitNum	= (int *) unitNum_c;
+	int32_t **		sizes	= (int **) sizes_c;
+	const char ***	names	= (const char ***) names_c;
+
+	*unitNum = pxtn->Unit_Num();
+
+	*sizes	= (int *)malloc(*unitNum * sizeof(int));
+	*names	= (const char **)malloc(*unitNum * sizeof(char *));
+	for (int i = 0; i < *unitNum; ++i) {
+		(*names)[i] = pxtn->Unit_Get(i)->get_name_buf((*sizes) + i);
+		// sizes from get_name_buf are upper bounds. js postprocessing does not
+		// detect null character so we do it here
+		if ((*sizes)[i] > strlen((*names)[i])) {
+			(*sizes)[i] = strlen((*names)[i]);
+		}
+	}
+	return true;
+}
+
+bool getPxtoneEvels(uintptr_t pxServ_c, uintptr_t evelNum_c,
 		uintptr_t kinds_c, uintptr_t units_c, uintptr_t values_c, uintptr_t clocks_c) {
 	void **		pxServ_m = (void **) pxServ_c;
 	pxtnService *pxtn	 = (pxtnService *) *pxServ_m;
 
-	int *		unitNum	= (int *) unitNum_c;
 	int *		evelNum	= (int *) evelNum_c;
 
 	uint8_t **	kinds	= (uint8_t **) kinds_c;
@@ -190,7 +213,6 @@ bool getPxtoneEvels(uintptr_t pxServ_c, uintptr_t unitNum_c, uintptr_t evelNum_c
 	int32_t **	values	= (int32_t **) values_c;
 	int32_t **	clocks	= (int32_t **) clocks_c;
 
-	*unitNum = pxtn->Unit_Num();
 	*evelNum = pxtn->evels->get_Count();
 	*kinds	= (uint8_t *)malloc(*evelNum * sizeof(uint8_t));
 	*units	= (uint8_t *)malloc(*evelNum * sizeof(uint8_t));
@@ -244,6 +266,7 @@ EMSCRIPTEN_BINDINGS(px_module) {
 	function("getPxtoneText", &getPxtoneText);
 	function("getPxtoneInfo", &getPxtoneInfo);
 	function("getPxtoneMaster", &getPxtoneMaster);
+	function("getPxtoneUnits", &getPxtoneUnits);
 	function("getPxtoneEvels", &getPxtoneEvels);
 	function("vomitPxtone", &vomitPxtone);
 }
