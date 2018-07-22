@@ -111,7 +111,8 @@ bool getPxtoneText(uintptr_t pxVomit_c, uintptr_t title_c, uintptr_t title_lengt
 
 	// title, comment
 	*title = (void *) pxVomit->text->get_name_buf(title_length);
-	*comment = (void *) pxVomit->text->get_name_buf(comment_length);
+	*comment = (void *) pxVomit->text->get_comment_buf(comment_length);
+	printf("title: %d\n", *title_length);
 
 	return true;
 }
