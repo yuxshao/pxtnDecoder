@@ -5,11 +5,10 @@ import textDecoder from "./textDecoder";
 import waitUntilIdle from "./waitUntilIdle";
 
 // emscripten import
-import { ENVIRONMENT, getNativeTypeSize, buffer, _free, decodeNoise, createPxtone, releasePxtone, getPxtoneText, getPxtoneInfo, getPxtoneMaster, getPxtoneEvels, vomitPxtone } from "./emDecoder";
+import { ENVIRONMENT, getNativeTypeSize, HEAPU8, _free, decodeNoise, createPxtone, releasePxtone, getPxtoneText, getPxtoneInfo, getPxtoneMaster, getPxtoneEvels, vomitPxtone } from "./emDecoder";
 
 // constant
 const TEMP_BUFFER_SIZE = 4096;
-const HEAPU8 = new Uint8Array(buffer);
 
 const eventKinds = [ // from pxtone_source/pxtnEvelist.h
   "NULL", "ON", "KEY", "PAN_VOLUME", "VELOCITY", "VOLUME", "PORTAMENT",
@@ -28,7 +27,18 @@ async function decode(type, inputBuffer, ch, sps, bps) {
     const inputSize = inputBuffer.byteLength;
 
     const inputBufferMem = new Memory(inputSize);
-    HEAPU8.set(new Uint8Array(inputBuffer), inputBufferMem.ptr);
+    // write to Emscripten heap for binding calls
+    (new Uint8Array(HEAPU8.buffer)).set(new Uint8Array(inputBuffer), inputBufferMem.ptr);
+
+    // get a buffer of data from the Emscripten heap
+    function get_heap (start, size, conv) {
+        // we have to re-retrieve the buffer from HEAPU8 every time in case it
+        // gets detached from a memory resize
+        let buf = HEAPU8.buffer.slice(start, start+size);
+        if (typeof conv !== 'undefined')
+            buf = new conv(buf);
+        return buf;
+    }
 
     // output
     let outputBuffer = null, outputStream = null, data = null, master = null, evels = null;
@@ -53,7 +63,7 @@ async function decode(type, inputBuffer, ch, sps, bps) {
             }
 
             const outputStart = outputMem.getValue(), outputEnd = outputStart + outputSizeMem.getValue();
-            outputBuffer = buffer.slice(outputStart, outputEnd);
+            outputBuffer = get_heap(outputStart, outputSizeMem.getValue());
 
             _free(outputStart);
             release();
@@ -108,14 +118,12 @@ async function decode(type, inputBuffer, ch, sps, bps) {
                 const titleStart = titleMem.getValue(), commentStart = commentMem.getValue();
 
                 if(titleStart) {
-                    const titleEnd = titleStart + titleSizeMem.getValue();
-                    const titleBuffer = buffer.slice(titleStart, titleEnd);
+                    const titleBuffer = get_heap(titleStart, titleSizeMem.getValue());
                     title = await textDecoder(titleBuffer);
                 }
 
                 if(commentStart) {
-                    const commentEnd = commentStart + commentSizeMem.getValue();
-                    const commentBuffer = buffer.slice(commentStart, commentEnd);
+                    const commentBuffer = get_heap(commentStart, commentSizeMem.getValue());
                     comment = await textDecoder(commentBuffer);
                 }
 
@@ -222,24 +230,16 @@ async function decode(type, inputBuffer, ch, sps, bps) {
                 const evelNum = evelNumMem.getValue();
 
                 const kindsStart = kindsMem.getValue();
-                const kindsEnd = kindsStart + (evelNum * getNativeTypeSize("i8"));
-                const kindsBufer = buffer.slice(kindsStart, kindsEnd);
-                const kindsBuffer = new Uint8Array(buffer.slice(kindsStart, kindsEnd));
+                const kindsBuffer = get_heap(kindsStart, evelNum * getNativeTypeSize("i8"), Uint8Array);
 
                 const unitsStart = unitsMem.getValue();
-                const unitsEnd = unitsStart + (evelNum * getNativeTypeSize("i8"));
-                const unitsBufer = buffer.slice(unitsStart, unitsEnd);
-                const unitsBuffer = new Uint8Array(buffer.slice(unitsStart, unitsEnd));
+                const unitsBuffer = get_heap(unitsStart, evelNum * getNativeTypeSize("i8"), Uint8Array);
 
                 const valuesStart = valuesMem.getValue();
-                const valuesEnd = valuesStart + (evelNum * getNativeTypeSize("i32"));
-                const valuesBufer = buffer.slice(valuesStart, valuesEnd);
-                const valuesBuffer = new Int32Array(buffer.slice(valuesStart, valuesEnd));
+                const valuesBuffer = get_heap(valuesStart, evelNum * getNativeTypeSize("i32"), Int32Array);
 
                 const clocksStart = clocksMem.getValue();
-                const clocksEnd = clocksStart + (evelNum * getNativeTypeSize("i32"));
-                const clocksBufer = buffer.slice(clocksStart, clocksEnd);
-                const clocksBuffer = new Int32Array(buffer.slice(clocksStart, clocksEnd));
+                const clocksBuffer = get_heap(clocksStart, evelNum * getNativeTypeSize("i32"), Int32Array);
 
                 evels = { unitNum, evels: new Array(evelNum) };
 
@@ -315,7 +315,7 @@ async function decode(type, inputBuffer, ch, sps, bps) {
                         }
 
                         release();
-                        return buffer.slice(tempBufferMem.ptr, tempBufferMem.ptr + size);
+                        return get_heap(tempBufferMem.ptr, size);
                     },
                     release: function () {
                         releaseVomit();
