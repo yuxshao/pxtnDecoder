@@ -4,9 +4,9 @@ EMCC_DIR:=emscripten_source
 CLANG_OPTS:=-std=c++11 -Wno-unused-value -Wno-switch -Wno-parentheses
 
 EMCC_OPTS:=--bind -s EXPORTED_RUNTIME_METHODS="['getValue']"
-# EMCC_OPTS+=-s DISABLE_EXCEPTION_CATCHING=1 -s NO_EXIT_RUNTIME=1 -s NO_FILESYSTEM=1
+EMCC_OPTS+=-s DISABLE_EXCEPTION_CATCHING=1 -s NO_EXIT_RUNTIME=1 -s NO_FILESYSTEM=1
 EMCC_OPTS+=-s ALLOW_MEMORY_GROWTH=1 -s WASM=1
-EMCC_OPTS+=-Oz --memory-init-file 0 --closure 1 --no-heap-copy
+EMCC_OPTS+=-Oz --memory-init-file 0 --closure 1
 EMCC_OPTS+=-s EXPORT_NAME=pxtnDecoder
 EMCC_OPTS+=-s MODULARIZE_INSTANCE=1
 EMCC_OPTS+=--pre-js $(EMCC_DIR)/pre.js --post-js $(EMCC_DIR)/post.js
