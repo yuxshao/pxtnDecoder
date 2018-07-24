@@ -9,6 +9,7 @@ pxtnUnit::pxtnUnit()
 {
 	_bPlayed   = true;
 	_bOperated = true;
+	_p_woice   = NULL;
 	strcpy( _name_buf, "no name" );
 	_name_size = strlen( _name_buf );
 }
