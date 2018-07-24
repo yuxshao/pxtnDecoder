@@ -146,15 +146,6 @@ bool getPxtoneInfo(uintptr_t pxVomit_c, int ch, int sps, int bps, uintptr_t wave
 	*loopStart	= (double)pxVomit->master->get_repeat_meas() / (double)measNum * duration;
 	*loopEnd	= (double)pxVomit->master->get_play_meas() / (double)measNum * duration;
 
-	// vomit start
-	{
-		pxtnVOMITPREPARATION prep = {0};
-		prep.flags          |= pxtnVOMITPREPFLAG_loop;
-		prep.start_pos_float =   0;
-		prep.master_volume   = 1.f;
-		if(!pxVomit->moo_preparation(&prep)) goto End;
-	}
-
 	b_ret = true;
 
 End:
@@ -230,6 +221,18 @@ bool getPxtoneEvels(uintptr_t pxServ_c, uintptr_t evelNum_c,
 	return true;
 }
 
+
+bool prepareVomitPxtone(uintptr_t pxVomit_c, float start_pos) {
+	void **			pxVomit_m	= (void **)	pxVomit_c;
+	pxtnService *	pxVomit		= (pxtnService *) *pxVomit_m;
+
+	pxtnVOMITPREPARATION prep = {0};
+	prep.flags          |= pxtnVOMITPREPFLAG_loop;
+	prep.start_pos_float = start_pos;
+	prep.master_volume   = 1.f;
+	return pxVomit->moo_preparation(&prep);
+}
+
 bool vomitPxtone(uintptr_t pxVomit_c, uintptr_t buffer_c, int size) {
 
 	void **		pxVomit_m	= (void **)	pxVomit_c;
@@ -268,5 +271,6 @@ EMSCRIPTEN_BINDINGS(px_module) {
 	function("getPxtoneMaster", &getPxtoneMaster);
 	function("getPxtoneUnits", &getPxtoneUnits);
 	function("getPxtoneEvels", &getPxtoneEvels);
+	function("prepareVomitPxtone", &prepareVomitPxtone);
 	function("vomitPxtone", &vomitPxtone);
 }

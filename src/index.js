@@ -5,9 +5,13 @@ import textDecoder from "./textDecoder";
 import waitUntilIdle from "./waitUntilIdle";
 
 // emscripten import
-import { ENVIRONMENT, getNativeTypeSize, getValue, HEAPU8, _free,
-    decodeNoise, createPxtone, releasePxtone, getPxtoneText, getPxtoneInfo,
-    getPxtoneMaster, getPxtoneUnits, getPxtoneEvels, vomitPxtone } from "./emDecoder";
+import {
+    ENVIRONMENT, getNativeTypeSize, getValue, HEAPU8, _free,
+    decodeNoise, createPxtone, releasePxtone,
+    getPxtoneText, getPxtoneInfo,
+    getPxtoneMaster, getPxtoneUnits, getPxtoneEvels,
+    prepareVomitPxtone, vomitPxtone
+} from "./emDecoder";
 
 // constant
 const TEMP_BUFFER_SIZE = 4096;
@@ -301,6 +305,14 @@ async function decode(type, inputBuffer, ch, sps, bps) {
                 release();
             }
 
+            // prepare vomit
+            {
+                if(!prepareVomitPxtone(pxVomitMem.ptr, 0)) {
+                    releaseVomit();
+                    throw new Error("Get Pxtone Prepare Vomit Error.");
+                }
+            }
+
             // vomit
             if(type === "pxtone") {
 
@@ -359,6 +371,12 @@ async function decode(type, inputBuffer, ch, sps, bps) {
                         release();
                         return get_heap(tempBufferMem.ptr, size);
                     },
+                    reset: async function (position) {
+                        if(!prepareVomitPxtone(pxVomitMem.ptr, position)) {
+                            releaseVomit();
+                            throw new Error("Get Pxtone Prepare Vomit Error.");
+                        }
+                    },
                     release: function () {
                         releaseVomit();
                     }
@@ -393,10 +411,10 @@ if(ENVIRONMENT === "NODE") {
         const type = data["type"];
 
         if(type !== "noise" && type !== "pxtone" && type !== "stream"
-            && type !== "stream_next" && type !== "stream_release")
+            && type !== "stream_next" && type !== "stream_reset" && type !== "stream_release")
             throw new TypeError(`type is invalid (${ type })`);
 
-        if(type === "stream_next" || type == "stream_release")
+        if(type === "stream_next" || type === "stream_release" || type === "stream_reset")
             return;
 
         const sessionId = data["sessionId"];
@@ -422,9 +440,8 @@ if(ENVIRONMENT === "NODE") {
                                 "streamBuffer": next
                             }));
                         break;
-                    case "stream_release":
-                        stream.release();
-                        break;
+                    case "stream_reset": stream.reset(data['position']); break;
+                    case "stream_release": stream.release(); break;
                 }
             });
         }
