@@ -368,8 +368,9 @@ async function decode(type, inputBuffer, ch, sps, bps) {
                             throw new Error("Pxtone Vomit Error.");
                         }
 
+                        let buf = get_heap(tempBufferMem.ptr, size);
                         release();
-                        return get_heap(tempBufferMem.ptr, size);
+                        return buf;
                     },
                     reset: async function (position) {
                         if(!prepareVomitPxtone(pxVomitMem.ptr, position)) {
