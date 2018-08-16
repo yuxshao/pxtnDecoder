@@ -222,14 +222,14 @@ bool getPxtoneEvels(uintptr_t pxServ_c, uintptr_t evelNum_c,
 }
 
 
-bool prepareVomitPxtone(uintptr_t pxVomit_c, float start_pos) {
+bool prepareVomitPxtone(uintptr_t pxVomit_c, int start_pos) {
 	void **			pxVomit_m	= (void **)	pxVomit_c;
 	pxtnService *	pxVomit		= (pxtnService *) *pxVomit_m;
 
 	pxtnVOMITPREPARATION prep = {0};
-	prep.flags          |= pxtnVOMITPREPFLAG_loop;
-	prep.start_pos_float = start_pos;
-	prep.master_volume   = 1.f;
+	prep.flags           |= pxtnVOMITPREPFLAG_loop;
+	prep.start_pos_sample = start_pos;
+	prep.master_volume    = 1.f;
 	return pxVomit->moo_preparation(&prep);
 }
 
