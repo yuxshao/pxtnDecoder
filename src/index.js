@@ -10,7 +10,8 @@ import {
     decodeNoise, createPxtone, releasePxtone,
     getPxtoneText, getPxtoneInfo,
     getPxtoneMaster, getPxtoneUnits, getPxtoneEvels,
-    prepareVomitPxtone, vomitPxtone
+    prepareVomitPxtone, vomitPxtone,
+    waitForReady
 } from "./emDecoder";
 
 // constant
@@ -29,6 +30,7 @@ const eventKinds = [ // from pxtone_source/pxtnEvelist.h
 // sps: samples per second?
 // bps: bits per sample I think
 async function decode(type, inputBuffer, ch, sps, bps) {
+    await waitForReady;
     // input buffer 
     const inputSize = inputBuffer.byteLength;
 

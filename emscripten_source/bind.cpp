@@ -261,7 +261,6 @@ void releasePxtone(uintptr_t pxVomit_c, uintptr_t doc_c) {
 	if(doc)		delete doc;
 }
 
-
 EMSCRIPTEN_BINDINGS(px_module) {
 	function("decodeNoise", &decodeNoise);
 	function("createPxtone", &createPxtone);
