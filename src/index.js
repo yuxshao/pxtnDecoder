@@ -446,6 +446,9 @@ if(ENVIRONMENT === "NODE") {
         const { buffer, stream } = msg;
 
         msg.sessionId = sessionId;
+        // requestId added so that different worker calls of the same session
+        // wouldn't get responses mixed up. (e.g., mute and next)
+        msg.requestId = data["requestId"];
         delete msg.stream;
         // here the worker is responding to the main thread
         global["postMessage"](msg, stream ? [] : [buffer]);
@@ -461,6 +464,7 @@ if(ENVIRONMENT === "NODE") {
                         stream.next(data["size"]).then((next) =>
                             global["postMessage"]({
                                 "sessionId":    sessionId,
+                                "requestId":    data["requestId"],
                                 "streamBuffer": next
                             }));
                         break;
@@ -471,6 +475,7 @@ if(ENVIRONMENT === "NODE") {
                         let isMute = stream.getMute(data['unitNum'], data['isMute']);
                         global["postMessage"]({
                             "sessionId":    sessionId,
+                            "requestId":    data["requestId"],
                             "isMute": isMute
                         });
                         break;
