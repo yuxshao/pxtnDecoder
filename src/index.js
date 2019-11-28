@@ -10,6 +10,7 @@ import {
     decodeNoise, createPxtone, releasePxtone,
     getPxtoneText, getPxtoneInfo,
     getPxtoneMaster, getPxtoneUnits, getPxtoneEvels,
+    setPxtoneUnitMute, getPxtoneUnitMute,
     prepareVomitPxtone, vomitPxtone,
     waitForReady
 } from "./emDecoder";
@@ -382,6 +383,24 @@ async function decode(type, inputBuffer, ch, sps, bps) {
                     },
                     release: function () {
                         releaseVomit();
+                    },
+                    setMute: function(unitNum, isMute) {
+                      if (!setPxtoneUnitMute(pxVomitMem.ptr, isMute)) {
+                        releaseVomit();
+                        throw new Error("Set Pxtone Unit Mute Error.");
+                      }
+                    },
+                    getMute: function(unitNum) {
+                      const isMuteMem = new Memory("i8");
+                      if (!getPxtoneUnitMute(pxVomitMem.ptr, isMuteMem)) {
+                        isMuteMem.release();
+                        releaseVomit();
+                        throw new Error("Get Pxtone Unit Mute Error.");
+                      }
+
+                      isMute = isMuteMem.getValue();
+                      isMute.release();
+                      return (isMute != 0);
                     }
                 };
             }

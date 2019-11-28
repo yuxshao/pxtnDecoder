@@ -192,6 +192,29 @@ bool getPxtoneUnits(uintptr_t pxServ_c, uintptr_t unitNum_c,
 	return true;
 }
 
+bool setPxtoneUnitMute(uintptr_t pxServ_c, int unitNum, bool isMute) {
+	void **		pxServ_m = (void **) pxServ_c;
+	pxtnService *pxtn	 = (pxtnService *) *pxServ_m;
+
+	pxtnUnit *unit = pxtn->Unit_Get_variable(unitNum);
+	if (unit == nullptr) return false;
+	unit->set_played(!isMute);
+	return true;
+}
+
+// Might not be needed
+bool getPxtoneUnitMute(uintptr_t pxServ_c, int unitNum, uintptr_t isMute_c) {
+	void **		pxServ_m = (void **) pxServ_c;
+	pxtnService *pxtn	 = (pxtnService *) *pxServ_m;
+
+	bool *isMute = (bool *)isMute_c;
+
+	const pxtnUnit *unit = pxtn->Unit_Get(unitNum);
+	if (unit == nullptr) return false;
+	*isMute = unit->get_played();
+	return true;
+}
+
 bool getPxtoneEvels(uintptr_t pxServ_c, uintptr_t evelNum_c,
 		uintptr_t kinds_c, uintptr_t units_c, uintptr_t values_c, uintptr_t clocks_c) {
 	void **		pxServ_m = (void **) pxServ_c;
