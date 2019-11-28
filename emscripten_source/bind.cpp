@@ -211,7 +211,7 @@ bool getPxtoneUnitMute(uintptr_t pxServ_c, int unitNum, uintptr_t isMute_c) {
 
 	const pxtnUnit *unit = pxtn->Unit_Get(unitNum);
 	if (unit == nullptr) return false;
-	*isMute = unit->get_played();
+	*isMute = !unit->get_played();
 	return true;
 }
 
