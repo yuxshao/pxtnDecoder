@@ -251,6 +251,7 @@ bool prepareVomitPxtone(uintptr_t pxVomit_c, int start_pos) {
 
 	pxtnVOMITPREPARATION prep = {0};
 	prep.flags           |= pxtnVOMITPREPFLAG_loop;
+	prep.flags           |= pxtnVOMITPREPFLAG_unit_mute;
 	prep.start_pos_sample = start_pos;
 	prep.master_volume    = 1.f;
 	return pxVomit->moo_preparation(&prep);
@@ -291,8 +292,10 @@ EMSCRIPTEN_BINDINGS(px_module) {
 	function("getPxtoneText", &getPxtoneText);
 	function("getPxtoneInfo", &getPxtoneInfo);
 	function("getPxtoneMaster", &getPxtoneMaster);
+	function("getPxtoneUnitMute", &getPxtoneUnitMute);
 	function("getPxtoneUnits", &getPxtoneUnits);
 	function("getPxtoneEvels", &getPxtoneEvels);
 	function("prepareVomitPxtone", &prepareVomitPxtone);
+	function("setPxtoneUnitMute", &setPxtoneUnitMute);
 	function("vomitPxtone", &vomitPxtone);
 }

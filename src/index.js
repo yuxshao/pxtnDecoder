@@ -385,14 +385,14 @@ async function decode(type, inputBuffer, ch, sps, bps) {
                         releaseVomit();
                     },
                     setMute: function(unitNum, isMute) {
-                      if (!setPxtoneUnitMute(pxVomitMem.ptr, isMute)) {
+                      if (!setPxtoneUnitMute(pxVomitMem.ptr, unitNum, isMute)) {
                         releaseVomit();
                         throw new Error("Set Pxtone Unit Mute Error.");
                       }
                     },
                     getMute: function(unitNum) {
                       const isMuteMem = new Memory("i8");
-                      if (!getPxtoneUnitMute(pxVomitMem.ptr, isMuteMem)) {
+                      if (!getPxtoneUnitMute(pxVomitMem.ptr, unitNum, isMuteMem)) {
                         isMuteMem.release();
                         releaseVomit();
                         throw new Error("Get Pxtone Unit Mute Error.");
