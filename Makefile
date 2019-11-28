@@ -36,4 +36,4 @@ src/emDecoder.js: $(PXTONE_DIR)/* $(EMCC_DIR)/*
 	em++ $(CLANG_OPTS) $(EMCC_OPTS) $(EMCC_LINKS) $(EMCC_SRCS) -o src/emDecoder.js
 
 clean:
-	$(RM) -rf build lib temp src/emDecoder.js
+	$(RM) -rf build lib temp src/emDecoder.js src/emDecoder.wasm
