@@ -432,8 +432,10 @@ if(ENVIRONMENT === "NODE") {
         const data = e["data"];
         const type = data["type"];
 
-        if(type !== "noise" && type !== "pxtone" && type !== "stream"
-            && type !== "stream_next" && type !== "stream_reset" && type !== "stream_release")
+        const valid_types = ["noise", "pxtone", "stream",
+          "stream_next", "stream_reset", "stream_release"];
+
+        if(!valid_types.includes(type))
             throw new TypeError(`type is invalid (${ type })`);
 
         if(type === "stream_next" || type === "stream_release" || type === "stream_reset")
@@ -464,6 +466,11 @@ if(ENVIRONMENT === "NODE") {
                         break;
                     case "stream_reset": stream.reset(data['position']); break;
                     case "stream_release": stream.release(); break;
+                    case "stream_set_mute": stream.setMute(data['unitNum'], data['isMute']); break;
+                    case "stream_get_mute":
+                        let isMute = stream.getMute(data['unitNum'], data['isMute']);
+                        global["postMessage"](isMute);
+                        break;
                 }
             });
         }
