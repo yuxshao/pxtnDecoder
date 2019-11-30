@@ -408,7 +408,7 @@ async function decode(type, inputBuffer, ch, sps, bps) {
         }
 
         default:
-            throw new TypeError(`type is invalid (${ type })`);
+            throw new TypeError(`decode type is invalid (${ type })`);
     }
 
     return {
@@ -433,10 +433,12 @@ if(ENVIRONMENT === "NODE") {
         const type = data["type"];
 
         const types = ["noise", "pxtone", "stream"];
-        const stream_commands = ["stream_next", "stream_reset", "stream_release"];
+        const stream_commands =
+          ["stream_next", "stream_reset", "stream_release",
+            "stream_set_mute", "stream_get_mute"];
 
         if(!types.includes(type) && !stream_commands.includes(type))
-            throw new TypeError(`type is invalid (${ type })`);
+            throw new TypeError(`worker message type is invalid (${ type })`);
 
         if(stream_commands.includes(type))
             return;
