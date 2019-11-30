@@ -375,7 +375,7 @@ async function decode(type, inputBuffer, ch, sps, bps) {
                         release();
                         return buf;
                     },
-                    reset: async function (position) {
+                    reset: function (position) {
                         if(!prepareVomitPxtone(pxVomitMem.ptr, position)) {
                             releaseVomit();
                             throw new Error("Get Pxtone Prepare Vomit Error.");
@@ -427,9 +427,19 @@ if(ENVIRONMENT === "NODE") {
 } else if(ENVIRONMENT === "WEB") {
 	global["pxtnDecoder"] = decode;
 } else if(ENVIRONMENT === "WORKER") {
+    function handleExceptions(handle) {
+        return async function (e) {
+            try { await handle(e["data"]); } catch (err) {
+                console.log("Error while handling message");
+                console.log("Data: ", e["data"]);
+                console.log("Error: ", err);
+                throw err
+            }
+        }
+    }
+
     // e is a MessageEvent. import info is in data
-    global["addEventListener"]("message", async function(e) {
-        const data = e["data"];
+    async function handleMessage(data) {
         const type = data["type"];
 
         const types = ["noise", "pxtone", "stream"];
@@ -457,13 +467,12 @@ if(ENVIRONMENT === "NODE") {
 
         // stream
         if(stream) {
-            global["addEventListener"]("message", (e) => {
-                const data = e["data"];
+            async function handleStream(data) {
                 if (data["sessionId"] !== sessionId)
                     return;
                 switch (data["type"]) {
                     case "stream_next":
-                        stream.next(data["size"]).then((next) =>
+                        await stream.next(data["size"]).then((next) =>
                             global["postMessage"]({
                                 "sessionId":    sessionId,
                                 "requestId":    data["requestId"],
@@ -482,8 +491,10 @@ if(ENVIRONMENT === "NODE") {
                         });
                         break;
                 }
-            });
+            }
+            global["addEventListener"]("message", handleExceptions(handleStream));
         }
-        
-	});
+	};
+
+    global["addEventListener"]("message", handleExceptions(handleMessage));
 }
