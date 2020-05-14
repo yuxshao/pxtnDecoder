@@ -1,7 +1,5 @@
 import { ENVIRONMENT } from "./emDecoder";
 
-const TextDecoder = global.TextDecoder || ENVIRONMENT === "NODE" && require("text-encoding").TextDecoder;
-
 export default function textDecoder(arraybuffer, charset = "shift_jis") {
 	return new Promise((resolve) => {
 		// Encoding API

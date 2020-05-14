@@ -1,8 +1,5 @@
-import Observable from "zen-observable";
-
 import Memory from "./memory";
 import textDecoder from "./textDecoder";
-import waitUntilIdle from "./waitUntilIdle";
 
 // emscripten import
 import {
@@ -331,7 +328,7 @@ async function decode(type, inputBuffer, ch, sps, bps) {
                 };
 
 
-                let deadline = await waitUntilIdle();
+                // let deadline = await waitUntilIdle();
                 for(let pc = 0; pc < outputSize; pc += TEMP_BUFFER_SIZE) {
                     const size = Math.min(TEMP_BUFFER_SIZE, outputSize - pc);
 
@@ -344,7 +341,7 @@ async function decode(type, inputBuffer, ch, sps, bps) {
                     // memcpy
                     outputArray.set(size === TEMP_BUFFER_SIZE ? tempArray : HEAPU8.subarray(tempBufferMem.ptr, tempBufferMem.ptr + size), pc);
 
-                    if(!deadline || deadline && deadline.timeRemaining() === 0) deadline = await waitUntilIdle();
+                   // if(!deadline || deadline && deadline.timeRemaining() === 0) deadline = await waitUntilIdle();
                 }
 
                 // release
@@ -362,8 +359,8 @@ async function decode(type, inputBuffer, ch, sps, bps) {
                             tempBufferMem.release();
                         };
 
-                        if (!deadline || deadline && deadline.timeRemaining() === 0)
-                            deadline = await waitUntilIdle();
+                        // if (!deadline || deadline && deadline.timeRemaining() === 0)
+                            // deadline = await waitUntilIdle();
 
                         if(!vomitPxtone(pxVomitMem.ptr, tempBufferMem.ptr, size)) {
                             release();
