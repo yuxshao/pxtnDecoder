@@ -16,12 +16,15 @@ EMCC_LINKS:=-I $(PXTONE_DIR)/src-oggvorbis -I $(PXTONE_DIR)
 EMCC_SRCS:=-x c $(wildcard $(PXTONE_DIR)/src-oggvorbis/*.c) ./vorbis/lib/.libs/libvorbis.a
 EMCC_SRCS+=-x c++ $(EMCC_DIR)/bind.cpp $(wildcard $(PXTONE_DIR)/*.cpp)
 
-all: build/pxtnDecoder.min.js
+all: build/pxtnDecoder.min.js build/emDecoder.wasm
+
+build/emDecoder.wasm: src/emDecoder.js
+	cp src/emDecoder.wasm build/emDecoder.wasm
 
 build/pxtnDecoder.min.js: build/pxtnDecoder.js
 	uglifyjs build/pxtnDecoder.js -c --comments "/pxtnDecoder/" -o build/pxtnDecoder.min.js 
 
-build/pxtnDecoder.js: src/* src/emDecoder.js
+build/pxtnDecoder.js: $(wildcard src/*) src/emDecoder.js
 	browserify src -o build/pxtnDecoder.js -t [ babelify --presets [ @babel/preset-env ] --plugins [ @babel/transform-runtime ] ]
 
 src/emDecoder.js: $(PXTONE_DIR)/* $(EMCC_DIR)/* vorbis/lib/.libs/libvorbis.a

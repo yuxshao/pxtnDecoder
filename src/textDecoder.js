@@ -1,5 +1,3 @@
-import { ENVIRONMENT } from "./emDecoder";
-
 export default function textDecoder(arraybuffer, charset = "shift_jis") {
 	return new Promise((resolve) => {
 		// Encoding API
