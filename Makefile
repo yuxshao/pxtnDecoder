@@ -31,14 +31,8 @@ src/emDecoder.js: $(PXTONE_DIR)/* $(EMCC_DIR)/* vorbis/lib/.libs/libvorbis.a
 	em++ $(CLANG_OPTS) $(EMCC_OPTS) $(EMCC_LINKS) $(EMCC_SRCS) -o src/emDecoder.js
 
 vorbis/lib/.libs/libvorbis.a:
-	cd Ogg
-	./autogen.sh
-	emconfigure configure
-	emmake make
-	cd ../
-	./autogen.sh
-	emconfigure ./configure --with-ogg-includes=$(pwd)/../Ogg/include --with-ogg-libraries=$(pwd)/../Ogg/src/.libs/
-	emmake make
+	cd Ogg && ./autogen.sh && emconfigure ./configure && emmake make
+	cd vorbis && ./autogen.sh && emconfigure ./configure --with-ogg-includes=${CURDIR}/Ogg/include --with-ogg-libraries=${CURDIR}/Ogg/src/.libs/ && emmake make
 
 clean:
 	$(RM) -rf build temp src/emDecoder.js src/emDecoder.wasm
