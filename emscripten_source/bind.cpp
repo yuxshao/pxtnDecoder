@@ -270,7 +270,7 @@ bool prepareVomitPxtone(uintptr_t pxVomit_c, int start_pos) {
 			prep.start_pos_sample -= end_smp - rep_smp;
 	}
 
-	prep.master_volume    = 1.f;
+	prep.master_volume    = 0.5f;
 	return pxVomit->moo_preparation(&prep);
 }
 
